@@ -1,0 +1,92 @@
+#!/usr/bin/env python3
+
+import sys
+import subprocess
+import os
+import ipaddress
+import platform
+
+def print_help():
+    print("Usage: script.py [--no-ping|-np] <ip|iprange|ipfile>")
+    print("Scans target(s) with nmap and opens an HTML report in Firefox.")
+    print("If a range is provided, it will ping sweep first unless --no-ping is given.")
+    sys.exit(0)
+
+def is_ip_range(target):
+    try:
+        ipaddress.ip_network(target, strict=False)
+        return True
+    except ValueError:
+        return False
+
+def ping_sweep(ip_range, output_file):
+    responsive_ips = []
+    print(f"[+] Pinging IPs in range {ip_range}...")
+
+    ping_cmd = ["ping", "-c", "1", "-W", "1"] if platform.system() != "Windows" else ["ping", "-n", "1"]
+
+    for ip in ipaddress.ip_network(ip_range, strict=False).hosts():
+        result = subprocess.run(ping_cmd + [str(ip)], stdout=subprocess.DEVNULL)
+        if result.returncode == 0:
+            print(f"[+] {ip} is responsive")
+            responsive_ips.append(str(ip))
+
+    with open(output_file, 'w') as f:
+        for ip in responsive_ips:
+            f.write(f"{ip}\n")
+
+    print(f"[+] {len(responsive_ips)} IP(s) responded. Saved to {output_file}")
+    return output_file if responsive_ips else None
+
+
+# Main logic
+args = sys.argv[1:]
+if not args or args[0] in ("-h", "--help"):
+    print_help()
+
+do_ping = True
+if args[0] in ("--no-ping", "-np"):
+    do_ping = False
+    args = args[1:]
+
+if not args:
+    print("[-] Error: No target specified.")
+    print_help()
+
+target = args[0]
+output_standard_tcp_xml = "tcp.all.aggro.xml"
+output_standard_tcp_html = "tcp.all.aggro.html"
+
+# Determine input type
+if os.path.isfile(target):
+    scan_input = target
+
+elif is_ip_range(target) and '/' in target:
+    if do_ping:
+        ping_file = f"{target.replace('/', '_')}_ping_response.txt"
+        scan_input = ping_sweep(target, ping_file)
+        if not scan_input:
+            print("[-] No responsive IPs found. Exiting.")
+            sys.exit(1)
+    else:
+        scan_input = target
+else:
+    # Single IP (even if in IP range format like "192.168.1.1")
+    scan_input = target
+
+
+# Run nmap
+if os.path.isfile(scan_input):
+    cmd = ["nmap", "-sS", "-sV", "-sC", "-O", "-T4","-F", "-iL", scan_input, "-oX", output_standard_tcp_xml]
+    #cmd = ["nmap", "-sS", "-sV", "-sC", "-O", "-p-", "-iL", scan_input, "-oX", output_standard_tcp_xml]
+else:
+   cmd = ["nmap", "-sS", "-sV", "-sC", "-O", "-T4","-F", scan_input, "-oX", output_standard_tcp_xml]
+   # cmd = ["nmap", "-sS", "-sV", "-sC", "-O", "-p-", scan_input, "-oX", output_standard_tcp_xml]
+
+print(f"[+] Running: {' '.join(cmd)}")
+subprocess.run(cmd)
+
+# Convert to HTML and open
+subprocess.run(["xsltproc", output_standard_tcp_xml,"-o",output_standard_tcp_html])
+subprocess.run(["firefox", output_standard_tcp_html])
+
