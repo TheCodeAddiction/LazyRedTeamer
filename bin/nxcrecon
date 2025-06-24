@@ -1,0 +1,179 @@
+#!/usr/bin/env python3
+
+import argparse
+import subprocess
+import os
+import sys
+
+def run_smb_recon(username, password, ntlm_hash, target, local_auth):
+    if os.path.isfile(target):
+        target_arg = f'{target}'
+    else:
+        target_arg = target
+
+    command = ['nxc', 'smb', target_arg, '-u', username]
+
+    if password:
+        command += ['-p', password]
+    elif ntlm_hash:
+        command += ['-H', ntlm_hash]
+
+    if local_auth:
+        command.append('--local-auth')
+
+    command.append('--shares')
+
+    print("[*] Running command:", ' '.join(command))
+    subprocess.run(command)
+    
+    
+def run_winrm_recon(username, password, ntlm_hash, target, local_auth):
+    if os.path.isfile(target):
+        target_arg = f'{target}'
+    else:
+        target_arg = target
+
+    command = ['nxc', 'winrm', target_arg, '-u', username]
+
+    if password:
+        command += ['-p', password]
+    elif ntlm_hash:
+        command += ['-H', ntlm_hash]
+
+    if local_auth:
+        command.append('--local-auth')
+
+    print("[*] Running command:", ' '.join(command))
+    subprocess.run(command)
+    
+def run_rdp_recon(username, password, ntlm_hash, target, local_auth):
+    if os.path.isfile(target):
+        target_arg = f'{target}'
+    else:
+        target_arg = target
+
+    command = ['nxc', 'rdp', target_arg, '-u', username]
+
+    if password:
+        command += ['-p', password]
+    elif ntlm_hash:
+        command += ['-H', ntlm_hash]
+
+    if local_auth:
+        command.append('--local-auth')
+
+    print("[*] Running command:", ' '.join(command))
+    subprocess.run(command)
+
+def run_ftp_recon(username, password, target, local_auth):
+    if os.path.isfile(target):
+        target_arg = f'{target}'
+    else:
+        target_arg = target
+
+    command = ['nxc', 'ftp', target_arg, '-u', username]
+
+    if password:
+        command += ['-p', password]
+    elif ntlm_hash:
+        command += ['-H', ntlm_hash]
+
+    if local_auth:
+        command.append('--local-auth')
+
+    print("[*] Running command:", ' '.join(command))
+    subprocess.run(command)
+
+def run_mssql_recon(username, password, ntlm_hash, target, local_auth):
+    if os.path.isfile(target):
+        target_arg = f'{target}'
+    else:
+        target_arg = target
+
+    command = ['nxc', 'mssql', target_arg, '-u', username]
+
+    if password:
+        command += ['-p', password]
+    elif ntlm_hash:
+        command += ['-H', ntlm_hash]
+
+    if local_auth:
+        command.append('--local-auth')
+
+    print("[*] Running command:", ' '.join(command))
+    subprocess.run(command)
+    
+def run_wmi_recon(username, password, ntlm_hash, target, local_auth):
+    if os.path.isfile(target):
+        target_arg = f'{target}'
+    else:
+        target_arg = target
+
+    command = ['nxc', 'wmi', target_arg, '-u', username]
+
+    if password:
+        command += ['-p', password]
+    elif ntlm_hash:
+        command += ['-H', ntlm_hash]
+
+    if local_auth:
+        command.append('--local-auth')
+
+    print("[*] Running command:", ' '.join(command))
+    subprocess.run(command)
+    
+def run_ssh_recon(username, password, target):
+    if os.path.isfile(target):
+        target_arg = f'{target}'
+    else:
+        target_arg = target
+
+    command = ['nxc', 'ssh', target_arg, '-u', username]
+
+    if password:
+        command += ['-p', password]
+
+    print("[*] Running command:", ' '.join(command))
+    subprocess.run(command)
+
+def run_nfs_recon(username, password, target):
+    if os.path.isfile(target):
+        target_arg = f'{target}'
+    else:
+        target_arg = target
+
+    command = ['nxc', 'nfs', target_arg, '-u', username]
+
+    if password:
+        command += ['-p', password]
+
+    command.append('--shares')
+    print("[*] Running command:", ' '.join(command))
+    subprocess.run(command)
+
+def main():
+    parser = argparse.ArgumentParser(description='NetExec SMB recon script.')
+    parser.add_argument('-u', '--username', required=True, help='Username')
+    
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('-p', '--password', help='Password')
+    group.add_argument('-H', '--hash', help='NTLM hash')
+
+    parser.add_argument('-t', '--target', required=True, help='Target IP or file with IPs')
+    parser.add_argument('--local-auth', action='store_true', help='Use local authentication')
+
+    args = parser.parse_args()
+    run_smb_recon(args.username, args.password, args.hash, args.target, args.local_auth)
+    run_winrm_recon(args.username, args.password, args.hash, args.target, args.local_auth)
+    run_rdp_recon(args.username, args.password, args.hash, args.target, args.local_auth)
+    run_mssql_recon(args.username, args.password, args.hash, args.target, args.local_auth)
+    run_wmi_recon(args.username, args.password, args.hash, args.target, args.local_auth)
+    
+    if not args.hash:
+    	run_ssh_recon(args.username, args.password, args.target)
+    	run_nfs_recon(args.username, args.password, args.target)
+    	run_ftp_recon(args.username, args.password, args.target, args.local_auth)
+
+if __name__ == '__main__':
+    main()
+

