@@ -5,7 +5,7 @@ LazyRedTeamer is a collection of my own tools that I use to automate setting up 
 `git pull <repo>`
 
 
-`export PATH="<path to the repo>/lazyredteamer/bin:$PATH"`
+`export PATH="<path to the repo>/LazyRedTeamer/bin:$PATH"`
 
 check by running `lazytest` it runs `whoami`, so you should see your username
 
