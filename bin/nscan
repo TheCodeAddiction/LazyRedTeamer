@@ -77,11 +77,11 @@ else:
 
 # Run nmap
 if os.path.isfile(scan_input):
-    cmd = ["nmap", "-sS", "-sV", "-sC", "-O", "-T4","-F", "-iL", scan_input, "-oX", output_standard_tcp_xml]
-    #cmd = ["nmap", "-sS", "-sV", "-sC", "-O", "-p-", "-iL", scan_input, "-oX", output_standard_tcp_xml]
+    #cmd = ["nmap", "-sS", "-sV", "-sC", "-O", "-T4","-F", "-iL", scan_input, "-oX", output_standard_tcp_xml]
+    cmd = ["nmap", "-sS", "-sV", "-sC", "-O", "-p-", "-iL", scan_input, "-oX", output_standard_tcp_xml]
 else:
-   cmd = ["nmap", "-sS", "-sV", "-sC", "-O", "-T4","-F", scan_input, "-oX", output_standard_tcp_xml]
-   # cmd = ["nmap", "-sS", "-sV", "-sC", "-O", "-p-", scan_input, "-oX", output_standard_tcp_xml]
+   #cmd = ["nmap", "-sS", "-sV", "-sC", "-O", "-T4","-F", scan_input, "-oX", output_standard_tcp_xml]
+   cmd = ["nmap", "-sS", "-sV", "-sC", "-O", "-p-", scan_input, "-oX", output_standard_tcp_xml]
 
 print(f"[+] Running: {' '.join(cmd)}")
 subprocess.run(cmd)
