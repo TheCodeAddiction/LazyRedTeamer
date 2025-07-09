@@ -75,7 +75,7 @@ def run_rdp_recon(username, password, ntlm_hash, target, local_auth, no_brutefor
     print("[*] Running command:", ' '.join(command))
     subprocess.run(command)
 
-def run_ftp_recon(username, password, target, local_auth, no_bruteforce):
+def run_ftp_recon(username, password, target, no_bruteforce):
     if os.path.isfile(target):
         target_arg = f'{target}'
     else:
@@ -191,7 +191,7 @@ def main():
     if not args.hash:
         run_ssh_recon(args.username, args.password, args.target, args.no_bruteforce)
         run_nfs_recon(args.username, args.password, args.target, args.no_bruteforce)
-        run_ftp_recon(args.username, args.password, args.target, args.local_auth, args.no_bruteforce)
+        run_ftp_recon(args.username, args.password, args.target, args.no_bruteforce)
 
 if __name__ == '__main__':
     main()
