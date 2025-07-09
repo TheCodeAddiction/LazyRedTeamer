@@ -5,6 +5,7 @@ import subprocess
 import os
 import ipaddress
 import platform
+import re
 
 def print_help():
     print("Usage: script.py [--no-ping|-np] <ip|iprange|ipfile>")
@@ -18,6 +19,9 @@ def is_ip_range(target):
         return True
     except ValueError:
         return False
+
+def sanitize_filename(name):
+    return re.sub(r'[^a-zA-Z0-9_.-]', '_', name)
 
 def ping_sweep(ip_range, output_file):
     responsive_ips = []
@@ -38,7 +42,6 @@ def ping_sweep(ip_range, output_file):
     print(f"[+] {len(responsive_ips)} IP(s) responded. Saved to {output_file}")
     return output_file if responsive_ips else None
 
-
 # Main logic
 args = sys.argv[1:]
 if not args or args[0] in ("-h", "--help"):
@@ -54,8 +57,6 @@ if not args:
     print_help()
 
 target = args[0]
-output_standard_tcp_xml = "tcp.all.aggro.xml"
-output_standard_tcp_html = "tcp.all.aggro.html"
 
 # Determine input type
 if os.path.isfile(target):
@@ -63,7 +64,7 @@ if os.path.isfile(target):
 
 elif is_ip_range(target) and '/' in target:
     if do_ping:
-        ping_file = f"{target.replace('/', '_')}_ping_response.txt"
+        ping_file = f"{sanitize_filename(target)}_ping_response.txt"
         scan_input = ping_sweep(target, ping_file)
         if not scan_input:
             print("[-] No responsive IPs found. Exiting.")
@@ -71,22 +72,23 @@ elif is_ip_range(target) and '/' in target:
     else:
         scan_input = target
 else:
-    # Single IP (even if in IP range format like "192.168.1.1")
     scan_input = target
 
+# Build output filenames based on scan_input
+input_label = sanitize_filename(os.path.basename(scan_input))
+output_standard_tcp_xml = f"tcp_{input_label}.xml"
+output_standard_tcp_html = f"tcp_{input_label}.html"
 
 # Run nmap
 if os.path.isfile(scan_input):
-    #cmd = ["nmap", "-sS", "-sV", "-sC", "-O", "-T4","-F", "-iL", scan_input, "-oX", output_standard_tcp_xml]
     cmd = ["nmap", "-sS", "-sV", "-sC", "-O", "-p-", "-iL", scan_input, "-oX", output_standard_tcp_xml]
 else:
-   #cmd = ["nmap", "-sS", "-sV", "-sC", "-O", "-T4","-F", scan_input, "-oX", output_standard_tcp_xml]
-   cmd = ["nmap", "-sS", "-sV", "-sC", "-O", "-p-", scan_input, "-oX", output_standard_tcp_xml]
+    cmd = ["nmap", "-sS", "-sV", "-sC", "-O", "-p-", scan_input, "-oX", output_standard_tcp_xml]
 
 print(f"[+] Running: {' '.join(cmd)}")
 subprocess.run(cmd)
 
 # Convert to HTML and open
-subprocess.run(["xsltproc", output_standard_tcp_xml,"-o",output_standard_tcp_html])
+subprocess.run(["xsltproc", output_standard_tcp_xml, "-o", output_standard_tcp_html])
 subprocess.run(["firefox", output_standard_tcp_html])
 
