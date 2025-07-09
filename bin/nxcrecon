@@ -5,7 +5,12 @@ import subprocess
 import os
 import sys
 
-def run_smb_recon(username, password, ntlm_hash, target, local_auth):
+def maybe_append_no_bruteforce(command, no_bruteforce):
+    if no_bruteforce:
+        command.append('--no-bruteforce')
+    return command
+
+def run_smb_recon(username, password, ntlm_hash, target, local_auth, no_bruteforce):
     if os.path.isfile(target):
         target_arg = f'{target}'
     else:
@@ -22,12 +27,13 @@ def run_smb_recon(username, password, ntlm_hash, target, local_auth):
         command.append('--local-auth')
 
     command.append('--shares')
+    command = maybe_append_no_bruteforce(command, no_bruteforce)
 
     print("[*] Running command:", ' '.join(command))
     subprocess.run(command)
     
     
-def run_winrm_recon(username, password, ntlm_hash, target, local_auth):
+def run_winrm_recon(username, password, ntlm_hash, target, local_auth, no_bruteforce):
     if os.path.isfile(target):
         target_arg = f'{target}'
     else:
@@ -43,10 +49,12 @@ def run_winrm_recon(username, password, ntlm_hash, target, local_auth):
     if local_auth:
         command.append('--local-auth')
 
+    command = maybe_append_no_bruteforce(command, no_bruteforce)
+
     print("[*] Running command:", ' '.join(command))
     subprocess.run(command)
     
-def run_rdp_recon(username, password, ntlm_hash, target, local_auth):
+def run_rdp_recon(username, password, ntlm_hash, target, local_auth, no_bruteforce):
     if os.path.isfile(target):
         target_arg = f'{target}'
     else:
@@ -62,10 +70,12 @@ def run_rdp_recon(username, password, ntlm_hash, target, local_auth):
     if local_auth:
         command.append('--local-auth')
 
+    command = maybe_append_no_bruteforce(command, no_bruteforce)
+
     print("[*] Running command:", ' '.join(command))
     subprocess.run(command)
 
-def run_ftp_recon(username, password, target, local_auth):
+def run_ftp_recon(username, password, target, local_auth, no_bruteforce):
     if os.path.isfile(target):
         target_arg = f'{target}'
     else:
@@ -75,16 +85,16 @@ def run_ftp_recon(username, password, target, local_auth):
 
     if password:
         command += ['-p', password]
-    elif ntlm_hash:
-        command += ['-H', ntlm_hash]
 
     if local_auth:
         command.append('--local-auth')
 
+    command = maybe_append_no_bruteforce(command, no_bruteforce)
+
     print("[*] Running command:", ' '.join(command))
     subprocess.run(command)
 
-def run_mssql_recon(username, password, ntlm_hash, target, local_auth):
+def run_mssql_recon(username, password, ntlm_hash, target, local_auth, no_bruteforce):
     if os.path.isfile(target):
         target_arg = f'{target}'
     else:
@@ -100,10 +110,12 @@ def run_mssql_recon(username, password, ntlm_hash, target, local_auth):
     if local_auth:
         command.append('--local-auth')
 
+    command = maybe_append_no_bruteforce(command, no_bruteforce)
+
     print("[*] Running command:", ' '.join(command))
     subprocess.run(command)
     
-def run_wmi_recon(username, password, ntlm_hash, target, local_auth):
+def run_wmi_recon(username, password, ntlm_hash, target, local_auth, no_bruteforce):
     if os.path.isfile(target):
         target_arg = f'{target}'
     else:
@@ -119,10 +131,12 @@ def run_wmi_recon(username, password, ntlm_hash, target, local_auth):
     if local_auth:
         command.append('--local-auth')
 
+    command = maybe_append_no_bruteforce(command, no_bruteforce)
+
     print("[*] Running command:", ' '.join(command))
     subprocess.run(command)
     
-def run_ssh_recon(username, password, target):
+def run_ssh_recon(username, password, target, no_bruteforce):
     if os.path.isfile(target):
         target_arg = f'{target}'
     else:
@@ -133,10 +147,12 @@ def run_ssh_recon(username, password, target):
     if password:
         command += ['-p', password]
 
+    command = maybe_append_no_bruteforce(command, no_bruteforce)
+
     print("[*] Running command:", ' '.join(command))
     subprocess.run(command)
 
-def run_nfs_recon(username, password, target):
+def run_nfs_recon(username, password, target, no_bruteforce):
     if os.path.isfile(target):
         target_arg = f'{target}'
     else:
@@ -148,6 +164,8 @@ def run_nfs_recon(username, password, target):
         command += ['-p', password]
 
     command.append('--shares')
+    command = maybe_append_no_bruteforce(command, no_bruteforce)
+
     print("[*] Running command:", ' '.join(command))
     subprocess.run(command)
 
@@ -161,18 +179,19 @@ def main():
 
     parser.add_argument('-t', '--target', required=True, help='Target IP or file with IPs')
     parser.add_argument('--local-auth', action='store_true', help='Use local authentication')
+    parser.add_argument('--no-bruteforce', action='store_true', help='Disable bruteforce attempts')
 
     args = parser.parse_args()
-    run_smb_recon(args.username, args.password, args.hash, args.target, args.local_auth)
-    run_winrm_recon(args.username, args.password, args.hash, args.target, args.local_auth)
-    run_rdp_recon(args.username, args.password, args.hash, args.target, args.local_auth)
-    run_mssql_recon(args.username, args.password, args.hash, args.target, args.local_auth)
-    run_wmi_recon(args.username, args.password, args.hash, args.target, args.local_auth)
+    run_smb_recon(args.username, args.password, args.hash, args.target, args.local_auth, args.no_bruteforce)
+    run_winrm_recon(args.username, args.password, args.hash, args.target, args.local_auth, args.no_bruteforce)
+    run_rdp_recon(args.username, args.password, args.hash, args.target, args.local_auth, args.no_bruteforce)
+    run_mssql_recon(args.username, args.password, args.hash, args.target, args.local_auth, args.no_bruteforce)
+    run_wmi_recon(args.username, args.password, args.hash, args.target, args.local_auth, args.no_bruteforce)
     
     if not args.hash:
-    	run_ssh_recon(args.username, args.password, args.target)
-    	run_nfs_recon(args.username, args.password, args.target)
-    	run_ftp_recon(args.username, args.password, args.target, args.local_auth)
+        run_ssh_recon(args.username, args.password, args.target, args.no_bruteforce)
+        run_nfs_recon(args.username, args.password, args.target, args.no_bruteforce)
+        run_ftp_recon(args.username, args.password, args.target, args.local_auth, args.no_bruteforce)
 
 if __name__ == '__main__':
     main()
