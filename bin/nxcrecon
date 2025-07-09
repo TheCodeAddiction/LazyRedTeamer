@@ -86,9 +86,6 @@ def run_ftp_recon(username, password, target, no_bruteforce):
     if password:
         command += ['-p', password]
 
-    if local_auth:
-        command.append('--local-auth')
-
     command = maybe_append_no_bruteforce(command, no_bruteforce)
 
     print("[*] Running command:", ' '.join(command))
