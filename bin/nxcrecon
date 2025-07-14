@@ -139,7 +139,7 @@ def run_ssh_recon(username, password, target, no_bruteforce):
     else:
         target_arg = target
 
-    command = ['nxc', 'ssh', target_arg, '-u', username]
+    command = ['nxc', 'ssh', target_arg, '-u', username, "--continue-on-success"]
 
     if password:
         command += ['-p', password]
