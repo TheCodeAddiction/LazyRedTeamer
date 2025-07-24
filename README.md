@@ -39,7 +39,7 @@ lazytest   # should print your current username
 | Script | External tools |
 | ------ | -------------- |
 | `nscan` | `nmap` ≥ 7.94, `xsltproc`, `firefox` |
-| `nxcrecon` | [`nxc`](https://github.com/chvancooten/NXC) |
+| `nxcrecon` | [`nxc`](https://github.com/Pennyw0rth/NetExec) |
 | `adrecon` | `bloodhound‑python`, `impacket` (for `GetUserSPNs.py` and `GetNPUsers.py`) |
 
 Install them with your favourite package manager.  On Debian‑based systems for example:
@@ -53,7 +53,7 @@ pipx install bloodhound-python impacket nxc
 
 ## 🛠 Scripts in Depth
 
-### nscan — one‑shot Nmap wrapper
+### nscan — one‑shot Nmap wrapper with ping for ip ranges
 
 **Synopsis**
 
@@ -176,7 +176,7 @@ The author(s) and contributors accept **no liability** for any direct or indirec
 ## 🙏 Credits
 
 - [nmap](https://nmap.org) – network exploration tool and security scanner.  
-- [NXC](https://github.com/chvancooten/NXC) – Powerful network eXfiltration & Crack utility.  
+- [NXC](https://github.com/Pennyw0rth/NetExec) – Powerful network eXfiltration & Crack utility.  
 - [BloodHound](https://github.com/BloodHoundAD/BloodHound) / [bloodhound‑python](https://github.com/fox-it/BloodHound.py).  
 - [Impacket](https://github.com/fortra/impacket).
 
