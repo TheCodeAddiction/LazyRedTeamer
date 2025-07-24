@@ -15,8 +15,6 @@
 | `adrecon` | Chains BloodHound collection, Kerberoasting and AS‑REP roasting for quick AD situational awareness. |
 | `lazytest` | A tiny diagnostic script that just runs `whoami` so you can verify the toolbox is on your `$PATH`. |
 
-More helpers will be added as they prove useful – check the [roadmap](#-roadmap) below or open an issue to suggest one.
-
 ---
 
 ## 🚀 Quick Start
