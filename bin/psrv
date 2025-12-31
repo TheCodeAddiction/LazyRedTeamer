@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+if [ -z "$1" ]; then
+  echo "Error: missing port number." >&2
+  echo "Usage: pysrv <port>" >&2
+  exit 1
+fi
+
+PORT="$1"
+
+exec python -m http.server "$PORT"
+
