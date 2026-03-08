@@ -1,6 +1,7 @@
+# Sorry for AI sloop readme, I will re-write this later.
 # LazyRedTeamer
 
-> **LazyRedTeamer** is a growing toolbox that bundles together the one‑off scripts I kept writing during red‑team engagements, CTFs and certification labs. Each helper script wraps a longer command‑line incantation so that I can stay in the *flow* instead of copy‑pasting cheat‑sheets.
+> **LazyRedTeamer** is a growing toolbox that bundles together one‑off scripts I kept writing during red‑team engagements, CTFs and certification labs. Each helper wraps a longer command-line workflow so I can stay in the *flow* instead of juggling cheat-sheets.
 
 ⚠️ **For authorised security testing and learning only!**
 
@@ -10,56 +11,92 @@
 
 | Script | What it automates |
 | ------ | ----------------- |
-| `nscan` | Runs an Nmap scan with aggressive discovery, default scripts, version detection and auto‑generated HTML report. |
-| `nxcrecon` | Opinionated wrapper around NetExec (`nxc`) that sweeps common services (SMB, WinRM, RDP, MSSQL, WMI, NFS, FTP, SSH). |
-| `adrecon` | Chains BloodHound collection, Kerberoasting and AS‑REP roasting for quick AD situational awareness. |
-| `lazytest` | A tiny diagnostic script that just runs `whoami` so you can verify the toolbox is on your `$PATH`. |
+| `nscan` | Nmap wrapper with optional ping sweep, full TCP scan, XML + HTML output. |
+| `nxcrecon` | Opinionated NetExec (`nxc`) sweep across common enterprise protocols. |
+| `adrecon` | BloodHound collection + Kerberoast + AS-REP roast helper workflow. |
+| `webfuzz.py` | Multi-pass Gobuster wrapper for directories/files/words with extensions. |
+| `icsphish.py` | Sends HTML + ICS calendar invite emails from custom templates. |
+| `icsphish_offsec.py` | Older/offsec variant of the ICS invitation sender flow. |
+| `pysrv` | Quick Python HTTP file server on a chosen port. |
+| `psrv` | Alias-style helper to start a Python HTTP server quickly. |
+| `lazytest` | Tiny sanity check (`whoami`) to verify your PATH/toolbox setup. |
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start
 
-```bash
-# 1. Grab the code
-git clone https://github.com/TheCodeAddiction/LazyRedTeamer.git
+    # 1) Clone
+    git clone https://github.com/TheCodeAddiction/LazyRedTeamer.git
 
-# 2. Add the bin/ directory to your PATH
-export PATH="$PWD/LazyRedTeamer/bin:$PATH"
+    # 2) Add bin/ to PATH (from repo root)
+    export PATH="$PWD/LazyRedTeamer/bin:$PATH"
 
-# 3. Sanity‑check
-lazytest   # should print your current username
-```
+    # 3) Test that scripts are reachable
+    lazytest
 
-> **Tip:** Want the PATH change every time you open a terminal?  Append the `export` line above to `~/.bashrc` (or `~/.zshrc`).
+> **Tip:** Add the `export PATH=...` line to `~/.bashrc` or `~/.zshrc` to keep it permanent.
 
 ---
 
 ## 📦 Dependencies
 
-| Script | External tools |
-| ------ | -------------- |
-| `nscan` | `nmap` ≥ 7.94, `xsltproc`, `firefox` |
-| `nxcrecon` | [`nxc`](https://github.com/Pennyw0rth/NetExec) |
-| `adrecon` | `bloodhound‑python`, `impacket` (for `GetUserSPNs.py` and `GetNPUsers.py`) |
+| Script | External tools required |
+| ------ | ----------------------- |
+| `nscan` | `nmap`, `xsltproc`, `firefox` |
+| `nxcrecon` | `nxc` (NetExec) |
+| `adrecon` | `bloodhound-python`, `impacket` (`GetUserSPNs.py`, `GetNPUsers.py`) |
+| `webfuzz.py` | `gobuster` |
+| `icsphish.py` / `icsphish_offsec.py` | Reachable SMTP server + Python stdlib |
+| `pysrv` / `psrv` / `lazytest` | Python |
 
 Install them with your favourite package manager.  On Debian‑based systems for example:
 
 ```bash
-sudo apt install nmap xsltproc firefox-esr
-pipx install bloodhound-python impacket nxc
+sudo apt install nmap xsltproc firefox-esr gobuster
+pipx install nxc bloodhound-python impacket
 ```
 
 ---
 
 ## 🛠 Scripts in Depth
 
-### nscan — one‑shot Nmap wrapper with ping for ip ranges
+### `lazytest` — verify setup fast
 
 **Synopsis**
 
-```bash
-nscan [--no-ping | -np] <target | CIDR | ip_list.txt>
-```
+    lazytest
+
+**What it does**
+
+Runs `whoami` and prints the current user. Useful to confirm your `bin/` path is wired correctly.
+
+---
+
+### `pysrv` / `psrv` — instant local HTTP file server
+
+**Synopsis**
+
+    pysrv <port>
+    psrv <port>
+
+**Examples**
+
+    pysrv 8000
+    psrv 9000
+
+**What it does**
+
+Starts:
+
+    python -m http.server <port>
+
+---
+
+### `nscan` — one-shot Nmap wrapper with ping sweep support
+
+**Synopsis**
+
+    nscan [--no-ping | -np] <target | CIDR | ip_list.txt>
 
 **Options**
 
@@ -93,13 +130,11 @@ nscan live_hosts.txt
 
 ---
 
-### nxcrecon — opinionated NetExec sweep
+### `nxcrecon` — NetExec protocol sweep helper
 
 **Synopsis**
 
-```bash
-nxcrecon -u <user> (-p <password> | -H <NTLM>) -t <target|list> [--local-auth] [--no-bruteforce]
-```
+    nxcrecon -u <user> (-p <password> | -H <NTLM>) -t <target|list> [--local-auth] [--no-bruteforce]
 
 **Options**
 
@@ -129,15 +164,11 @@ nxcrecon -u bob -H aad3b435b51404eeaad3b435b51404ee:32ed87bdb5fdc5e9cba885473768
 
 ---
 
-### adrecon — Active Directory reconnaissance helper
+### `adrecon` — AD recon chain helper
 
 **Synopsis**
 
-```bash
-adrecon -u <user> -d <domain> -dc <dc_ip> -ns <dns_ip> (-p <password> | -H <hash>)
-```
-
-**Options**
+    adrecon -u <user> -d <domain> -dc <dc_ip_or_name> -ns <dns_ip> (-p <password> | -H <hash>)
 
 | Option | Explanation |
 |--------|-------------|
@@ -147,15 +178,80 @@ adrecon -u <user> -d <domain> -dc <dc_ip> -ns <dns_ip> (-p <password> | -H <hash
 | `-ns`, `--nameserver` *REQ* | DNS server IP (passed to tools). |
 | `-p`, `--password` | Password (mutually exclusive with `-H`). |
 | `-H`, `--hash` | NTLM hash (mutually exclusive with `-p`). |
-| `-h`, `--help` | Show help message and exit. |
+---
+
+### `webfuzz.py` — simple Gobuster multi-pass wrapper
+
+**Synopsis**
+
+    python3 bin/webfuzz.py -u <url>
 
 **What it does**
 
-1. Collects BloodHound data (`bloodhound-python -c all`).  
-2. Kerberoasts with `GetUserSPNs.py`.  
-3. Attempts AS‑REP roasting with `GetNPUsers.py` (only if a clear‑text password is supplied).
+Runs three Gobuster passes against:
+- `raft-large-directories-lowercase.txt`
+- `raft-large-files-lowercase.txt` (+ extensions)
+- `raft-large-words-lowercase.txt` (+ extensions)
 
-**Examples**
+Current behavior includes:
+- redirect following (`-r`)
+- filtered status handling via blacklist
+- extension sweep (including `php`, `aspx`, `jsp`, etc.)
+
+**Example**
+
+    python3 bin/webfuzz.py -u http://192.168.56.101
+
+---
+
+### `icsphish.py` — template-driven HTML + ICS invite sender
+
+**Synopsis**
+
+    python3 bin/icsphish.py \
+      --smtp-server <smtp_host> \
+      --from <sender_email> \
+      --to <recipient_email> \
+      --event-url <url_or_text> \
+      --ics-template <path_to_ics_template> \
+      --html-template <path_to_html_template>
+
+**What it does**
+
+Builds an email with:
+- HTML message body
+- calendar invite (`.ics`) payload
+
+---
+
+### `icsphish_offsec.py` — legacy/offsec ICS sender variant
+
+**Synopsis**
+
+    python3 bin/icsphish_offsec.py <smtp_server> <sender_email> <recipient_email> <event_url>
+
+**What it does**
+
+Older variant of the calendar invite sender flow using local template files.
+
+---
+
+## ⚖️ Responsible / Legal Use
+
+These scripts can be disruptive if misused. You are solely responsible for ensuring you have explicit authorization before testing any systems.
+
+---
+
+## 🙏 Credits
+
+- [nmap](https://nmap.org)
+- [NetExec (NXC)](https://github.com/Pennyw0rth/NetExec)
+- [BloodHound](https://github.com/BloodHoundAD/BloodHound)
+- [bloodhound-python](https://github.com/fox-it/BloodHound.py)
+- [Impacket](https://github.com/fortra/impacket)
+- [Gobuster](https://github.com/OJ/gobuster)
+
+> *Happy hacking*
 
 ```bash
 # All‑in‑one recon using a password
@@ -167,9 +263,7 @@ adrecon -u svc_account -H 1b6453892473a467d07372d45eb05abc2031647a -d corp.local
 
 ## ⚖️ Responsible / Legal Use
 
-The scripts in this repository can **damage systems or breach policies** when misused. You are *solely* responsible for ensuring you have **written permission** to test the targets you point them at.
-
-The author(s) and contributors accept **no liability** for any direct or indirect damage arising from the use of these tools. When in doubt, **don’t run it**.
+These scripts can be disruptive if misused. You are solely responsible for ensuring you have explicit authorization before testing any systems.
 
 ---
 
@@ -178,6 +272,7 @@ The author(s) and contributors accept **no liability** for any direct or indirec
 - [nmap](https://nmap.org) – network exploration tool and security scanner.  
 - [NXC](https://github.com/Pennyw0rth/NetExec) – Powerful network eXfiltration & Crack utility.  
 - [BloodHound](https://github.com/BloodHoundAD/BloodHound) / [bloodhound‑python](https://github.com/fox-it/BloodHound.py).  
-- [Impacket](https://github.com/fortra/impacket).
+- [Impacket](https://github.com/fortra/impacket)
+- [Gobuster](https://github.com/OJ/gobuster)
 
 > *Happy hacking*

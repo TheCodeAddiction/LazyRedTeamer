@@ -1,0 +1,103 @@
+#!/usr/bin/env python3
+
+import argparse
+import os
+import pty
+import re
+import subprocess
+import sys
+from pathlib import Path
+import shutil
+
+
+THREADS = "50"
+STATUS_CODES_BLACKLIST = "400,401,403,404"
+EXTENSIONS = "php,aspx,asp,jsp,txt,html,js,json,bak,old,zip,tar,gz"
+
+
+HIT_LINE_RE = re.compile(r"^/\S+\s+\(Status:\s*\d+\)")
+PROGRESS_RE = re.compile(r"^Progress:\s*\d+\s*/\s*\d+\s*\(\d+\.\d+%\)")
+
+
+def ensure_url_scheme(raw_url):
+    if "://" not in raw_url:
+        return f"http://{raw_url}"
+    return raw_url
+
+
+def run_pass(name, url, wordlist, use_extensions, printed_hits):
+    cmd = [
+        "gobuster", "dir",
+        "-u", url,
+        "-w", wordlist,
+        "-t", THREADS,
+        "-r",
+        "--status-codes-blacklist", STATUS_CODES_BLACKLIST
+    ]
+
+    if use_extensions:
+        cmd.extend(["-x", EXTENSIONS])
+
+    process = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1
+    )
+
+    if process.stdout is not None:
+        for raw_line in process.stdout:
+            line = raw_line.strip()
+            if not line:
+                continue
+
+            # only dedupe hit lines; let other lines pass through if needed
+            if "(Status:" in line and line.startswith("/"):
+                if line in printed_hits:
+                    continue
+                printed_hits.add(line)
+                print(line)
+            elif line.startswith("Progress:"):
+                continue
+
+    process.wait()
+    if process.returncode != 0:
+        print(f"[!] Pass '{name}' failed with exit code {process.returncode}")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Simple gobuster wrapper (dirs/files/words).")
+    parser.add_argument("-u", "--url", required=True, help="Target URL (example: http://10.10.10.10/)")
+    args = parser.parse_args()
+
+    tool = Path("gobuster")
+    if shutil.which(str(tool)) is None:
+        print("[-] gobuster not found in PATH.", file=sys.stderr)
+        sys.exit(1)
+
+    url = ensure_url_scheme(args.url)
+
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(base_dir)
+    wordlists_dir = os.path.join(project_root, "wordlists")
+
+    wordlist_common = os.path.join(wordlists_dir, "common.txt")
+    wordlist_dirs = os.path.join(wordlists_dir, "raft-large-directories-lowercase.txt")
+    wordlist_files = os.path.join(wordlists_dir, "raft-large-files-lowercase.txt")
+    wordlist_words = os.path.join(wordlists_dir, "raft-large-words-lowercase.txt")
+
+    for wordlist in [wordlist_common, wordlist_dirs, wordlist_files, wordlist_words]:
+        if not os.path.isfile(wordlist):
+            print(f"[-] Missing wordlist: {wordlist}", file=sys.stderr)
+            sys.exit(1)
+
+    printed_hits = set()
+    run_pass("common", url, wordlist_common, True, printed_hits)
+    run_pass("dirs", url, wordlist_dirs, False, printed_hits)
+    run_pass("files", url, wordlist_files, False, printed_hits)
+    run_pass("words", url, wordlist_words, True, printed_hits)
+
+
+if __name__ == "__main__":
+    main()
