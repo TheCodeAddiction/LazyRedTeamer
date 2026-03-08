@@ -4,8 +4,10 @@ import argparse
 import os
 import pty
 import re
+import select
 import subprocess
 import sys
+import time
 from pathlib import Path
 import shutil
 
@@ -13,10 +15,14 @@ import shutil
 THREADS = "50"
 STATUS_CODES_BLACKLIST = "400,401,403,404"
 EXTENSIONS = "php,aspx,asp,jsp,txt,html,js,json,bak,old,zip,tar,gz"
+ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
 
-
-HIT_LINE_RE = re.compile(r"^/\S+\s+\(Status:\s*\d+\)")
-PROGRESS_RE = re.compile(r"^Progress:\s*\d+\s*/\s*\d+\s*\(\d+\.\d+%\)")
+RESET = "\033[0m"
+BOLD = "\033[1m"
+CYAN = "\033[36m"
+GREEN = "\033[32m"
+YELLOW = "\033[33m"
+RED = "\033[31m"
 
 
 def ensure_url_scheme(raw_url):
@@ -25,7 +31,59 @@ def ensure_url_scheme(raw_url):
     return raw_url
 
 
-def run_pass(name, url, wordlist, use_extensions, printed_hits):
+def clean_output_line(line: str) -> str:
+    line = ANSI_ESCAPE_RE.sub("", line)
+    return line.replace("\x00", "").strip()
+
+
+def terminal_supports_color() -> bool:
+    return sys.stdout.isatty() and os.environ.get("TERM", "").lower() not in ("", "dumb")
+
+
+def colorize_status_line(status_text: str) -> str:
+    if not terminal_supports_color():
+        return status_text
+
+    colored = re.sub(r"^\[([^\]]+)\]", rf"{BOLD}{CYAN}[\1]{RESET}", status_text)
+
+    m = re.search(r"\((\d+(?:\.\d+)?)%\)", status_text)
+    if m:
+        pct = float(m.group(1))
+        pct_color = RED if pct < 33 else (YELLOW if pct < 80 else GREEN)
+        colored_pct = f"({pct_color}{m.group(1)}%{RESET})"
+        colored = colored.replace(m.group(0), colored_pct, 1)
+
+    return colored
+
+
+def colorize_hit_line(line: str) -> str:
+    if not terminal_supports_color():
+        return line
+    return f"{GREEN}{line}{RESET}"
+
+
+def colorize_error_line(line: str) -> str:
+    if not terminal_supports_color():
+        return line
+    return f"{BOLD}{RED}{line}{RESET}"
+
+
+def render_status_bar(status_text: str):
+    if not sys.stdout.isatty():
+        return
+    cols = shutil.get_terminal_size((120, 20)).columns
+    rendered = colorize_status_line(status_text)
+    safe = rendered[: max(0, cols - 1)]
+    sys.stdout.write("\033[s\033[1;1H\033[2K" + safe + "\033[u")
+    sys.stdout.flush()
+
+
+def print_result_line(line: str, current_status: str):
+    print(colorize_hit_line(line), flush=True)
+    render_status_bar(current_status)
+
+
+def run_pass(name, url, wordlist, use_extensions, printed_hits, status_interval):
     cmd = [
         "gobuster", "dir",
         "-u", url,
@@ -38,43 +96,91 @@ def run_pass(name, url, wordlist, use_extensions, printed_hits):
     if use_extensions:
         cmd.extend(["-x", EXTENSIONS])
 
+    master_fd, slave_fd = pty.openpty()
     process = subprocess.Popen(
         cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        bufsize=1
+        stdin=subprocess.DEVNULL,
+        stdout=slave_fd,
+        stderr=slave_fd,
+        text=False,
+        close_fds=True
     )
+    os.close(slave_fd)
 
-    if process.stdout is not None:
-        for raw_line in process.stdout:
-            line = raw_line.strip()
-            if not line:
-                continue
+    current_status = f"[{name}] starting"
+    render_status_bar(current_status)
 
-            # only dedupe hit lines; let other lines pass through if needed
-            if "(Status:" in line and line.startswith("/"):
-                if line in printed_hits:
-                    continue
-                printed_hits.add(line)
-                print(line)
-            elif line.startswith("Progress:"):
-                continue
+    last_status_seen = 0.0
+    current_line_chars = []
+
+    try:
+        while True:
+            ready, _, _ = select.select([master_fd], [], [], 0.25)
+
+            if ready:
+                try:
+                    chunk = os.read(master_fd, 4096)
+                except OSError:
+                    chunk = b""
+
+                if chunk:
+                    text = chunk.decode(errors="replace")
+                    for ch in text:
+                        if ch in ("\r", "\n"):
+                            raw = "".join(current_line_chars)
+                            current_line_chars = []
+                            cleaned = clean_output_line(raw)
+                            if not cleaned:
+                                continue
+
+                            if "(Status:" in cleaned and cleaned.startswith("/"):
+                                if cleaned not in printed_hits:
+                                    printed_hits.add(cleaned)
+                                    print_result_line(cleaned, current_status)
+                                continue
+
+                            if "Progress:" in cleaned:
+                                now = time.monotonic()
+                                if now - last_status_seen >= status_interval:
+                                    current_status = f"[{name}] {cleaned}"
+                                    render_status_bar(current_status)
+                                    last_status_seen = now
+                        else:
+                            current_line_chars.append(ch)
+
+            if process.poll() is not None:
+                if current_line_chars:
+                    cleaned = clean_output_line("".join(current_line_chars))
+                    if cleaned and "Progress:" in cleaned:
+                        current_status = f"[{name}] {cleaned}"
+                break
+    finally:
+        os.close(master_fd)
 
     process.wait()
+    render_status_bar(f"[{name}] done")
     if process.returncode != 0:
-        print(f"[!] Pass '{name}' failed with exit code {process.returncode}")
-
+        print(colorize_error_line(f"[!] Pass '{name}' failed with exit code {process.returncode}"), flush=True)
+        render_status_bar(f"[{name}] done")
 
 def main():
     parser = argparse.ArgumentParser(description="Simple gobuster wrapper (dirs/files/words).")
     parser.add_argument("-u", "--url", required=True, help="Target URL (example: http://10.10.10.10/)")
+    parser.add_argument(
+        "--status-interval",
+        type=float,
+        default=1.0,
+        help="Minimum seconds between status-bar updates (default: 1.0)."
+    )
     args = parser.parse_args()
 
     tool = Path("gobuster")
     if shutil.which(str(tool)) is None:
         print("[-] gobuster not found in PATH.", file=sys.stderr)
         sys.exit(1)
+
+    if sys.stdout.isatty():
+        print("", flush=True)  # reserve top line for status bar
 
     url = ensure_url_scheme(args.url)
 
@@ -93,10 +199,10 @@ def main():
             sys.exit(1)
 
     printed_hits = set()
-    run_pass("common", url, wordlist_common, True, printed_hits)
-    run_pass("dirs", url, wordlist_dirs, False, printed_hits)
-    run_pass("files", url, wordlist_files, False, printed_hits)
-    run_pass("words", url, wordlist_words, True, printed_hits)
+    run_pass("common", url, wordlist_common, True, printed_hits, args.status_interval)
+    run_pass("dirs", url, wordlist_dirs, False, printed_hits, args.status_interval)
+    run_pass("files", url, wordlist_files, False, printed_hits, args.status_interval)
+    run_pass("words", url, wordlist_words, True, printed_hits, args.status_interval)
 
 
 if __name__ == "__main__":
