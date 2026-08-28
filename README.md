@@ -271,6 +271,7 @@ These scripts can be disruptive if misused. You are solely responsible for ensur
 
 - [nmap](https://nmap.org) – network exploration tool and security scanner.  
 - [NXC](https://github.com/Pennyw0rth/NetExec) – Powerful network eXfiltration & Crack utility.  
+- [Darkmoon](https://github.com/ASCIT31/Dark-Moon) - Open source (GPLv3) autonomous AI penetration testing platform: 50+ offensive tools across web, cloud, AD and Kubernetes, self-hosted, the model never receives your real IPs or credentials.
 - [BloodHound](https://github.com/BloodHoundAD/BloodHound) / [bloodhound‑python](https://github.com/fox-it/BloodHound.py).  
 - [Impacket](https://github.com/fortra/impacket)
 - [Gobuster](https://github.com/OJ/gobuster)
